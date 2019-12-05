@@ -7,33 +7,23 @@ namespace zentao\zentao;
  *
  * @copyright   Copyright 2009-2015 青岛易软天创网络科技有限公司(QingDao Nature Easy Soft Network Technology Co,LTD,  www.cnezsoft.com)
  * @license     ZPL (http://zpl.pub/page/zplv12.html)
- * @author      Yong Lei <chunsheng@cnezsoft.com>
+ * @author
  * @package     api
- * @version     $Id: control.php 5143 2013-07-15 06:11:59Z leiyong208@gmail.com $
+ * @version     v1.0.0
  * @link        http://www.zentao.net
  */
 class zentao
 {
-    //ZenTaoPMS deploys domain names.
-    const ztURL = 'http://****.com';
-    //ZenTaoPMS login account.
-    const ztAccount = 'admin';
-    //ZenTaoPMS login password.
-    const ztPassword = 'asd123456';
-    //Parameter request method. [GET|PATH_INFO]
-    const requestType = 'PATH_INFO';
-    //Session authentication.
-    public $sessionAuth = '';
-    //Interface request parameter.
-    public $params = array();
-    //Session random number for some encryption and verification.
-    public $sessionRand = 0;
-    //Return result.
-    public $returnResult = array(
-        'status' => 0,
-        'msg'    => 'error',
-        'result' => array()
-    );
+    const ztURL        = '';            // ZenTaoPMS deploys domain names.
+    const ztAccount    = '';            // ZenTaoPMS login account.
+    const ztPassword   = '';            // ZenTaoPMS login password.
+    const ztAccessMode = '';            // Parameter request method. [GET|PATH_INFO]
+
+    public $sessionRand   = 0;          // Session random number for some encryption and verification.
+    public $tokenAuth     = '';         // Session authentication.
+    public $requestMethod = '';         // Set request method.
+    public $params        = array();    // Interface request parameter.
+    public $returnResult  = array('status' => 0, 'msg' => 'error', 'result' => array());            // Return result.
 
     /**
      * Get the session ID required for the session.
@@ -43,14 +33,6 @@ class zentao
      */
     public function __construct()
     {
-        $this->params      = array(
-            'm' => 'api',
-            'f' => 'getSessionID'
-        );
-        $result            = $this->getUrl(self::ztURL);
-        $resultData        = json_decode($result);
-        $sessionData       = json_decode($resultData->data);
-        $this->sessionAuth = $sessionData->sessionName . '=' . $sessionData->sessionID;
         $this->login();
     }
 
@@ -58,24 +40,21 @@ class zentao
      * User login verification.
      *
      * @access public
-     * @return string
+     * @return void
      */
     public function login()
     {
-        $this->params = array(
-            'account'  => self::ztAccount,
-            'password' => self::ztPassword
-        );
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, array(
-                'm' => 'user',
-                'f' => 'login'
-            ));
-            $result       = $this->getUrl(self::ztURL);
-        } elseif (self::requestType == 'PATH_INFO') {
-            $result = $this->postUrl(self::ztURL . '/user-login.json');
-        }
-        return $result;
+        /* Get token. */
+        $result          = $this->setParams(array('m' => 'api', 'f' => 'getSessionID'))
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+        $result          = json_decode($result->data);
+        $this->tokenAuth = $result->sessionName . '=' . $result->sessionID;
+
+        /* User authentication login. */
+        $this->setParams(array('account' => self::ztAccount, 'password' => self::ztPassword))
+            ->setRequestMethod('post')
+            ->sendRequest(array('get' => self::ztURL . '?m=user&f=login&t=json', 'path_info' => self::ztURL . '/user-login.json'));
     }
 
     /**
@@ -87,31 +66,12 @@ class zentao
      */
     public function deptBrowse($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'dept',
-            'f' => 'browse'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') === 0) {
-            $sessionData = json_decode($resultData->data);
-            if (!empty($sessionData->tree)) {
-                $returnResult = array(
-                    'status' => 1,
-                    'msg'    => 'success',
-                    'result' => array(
-                        'title'       => $sessionData->title,
-                        'deptID'      => $sessionData->deptID,
-                        'parentDepts' => $sessionData->parentDepts,
-                        'sons'        => $sessionData->sons,
-                        'tree'        => $sessionData->tree
-                    )
-                );
-            }
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'dept', 'f' => 'browse'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,deptID,parentDepts,sons,tree');
+        return $returnResult;
     }
 
     /**
@@ -123,23 +83,13 @@ class zentao
      */
     public function deptManageChild($optionalParams = array())
     {
+        $result = $this->setParams(array(), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest(array('get' => self::ztURL . '?m=dept&f=manageChild&t=json', 'path_info' => self::ztURL . '/dept-manageChild.json'));
+
         $returnResult = $this->returnResult;
-        if (self::requestType == 'GET') {
-            $this->params = array();
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=dept&f=manageChild&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array();
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/dept-manageChild.json');
-        }
-        if (strpos($result, 'reload')) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array()
-            );
-        }
+        if (strpos($result, 'reload')) $returnResult = array('status' => 1, 'msg' => 'success', 'result' => array());
+
         return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
     }
 
@@ -152,26 +102,12 @@ class zentao
      */
     public function companyBrowse($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'company',
-            'f' => 'browse',
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title' => $resultList->title,
-                    'users' => $resultList->users
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'company', 'f' => 'browse'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,users');
+        return $returnResult;
     }
 
     /**
@@ -183,30 +119,14 @@ class zentao
      */
     public function userCreateInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'user',
-            'f' => 'create'
-        );
+        $result = $this->setParams(array('m' => 'user', 'f' => 'create'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->returnResult;
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList        = json_decode($resultData->data);
-            $returnResult      = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'     => $resultList->title,
-                    'depts'     => $resultList->depts,
-                    'groupList' => $resultList->groupList,
-                    'roleGroup' => $resultList->roleGroup
-                )
-            );
-            $this->sessionRand = $resultList->rand;
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $returnResult      = $this->getResultData($result, 'title,depts,groupList,roleGroup');
+        $result            = json_decode($result->data);
+        $this->sessionRand = $result->rand;
+        return $returnResult;
     }
 
     /**
@@ -220,29 +140,19 @@ class zentao
     {
         //Get the random number required for encryption.
         $this->userCreateInfo();
-        $returnResult                     = $this->returnResult;
-        $this->params                     = array();
+
         $optionalParams['password1']      = md5($optionalParams['password1'] . $this->sessionRand);
         $optionalParams['password2']      = md5($optionalParams['password2'] . $this->sessionRand);
         $optionalParams['verifyPassword'] = md5(md5(self::ztPassword) . $this->sessionRand);
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=user&f=create&dept=' . $optionalParams['dept'] . '&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/user-create-' . $optionalParams['dept'] . '.json');
-        }
-        $resultData = json_decode($result);
-        if (strcmp($resultData->result, 'success') == 0) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => $resultData->message
-            );
-            return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
-        }
-        $returnResult['result'] = $resultData->message;
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $requestURL['get']                = self::ztURL . '?m=user&f=create&dept=' . $optionalParams['dept'] . '&t=json';
+        $requestURL['path_info']          = self::ztURL . '/user-create-' . $optionalParams['dept'] . '.json';
+
+        $responseData = $this->setParams(array(), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL, true);
+
+        $returnResult = $this->getOperationResult($responseData);
+        return $returnResult;
     }
 
     /**
@@ -254,27 +164,12 @@ class zentao
      */
     public function productAll($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'product',
-            'f' => 'all'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'        => $resultList->title,
-                    'products'     => $resultList->products,
-                    'productStats' => $resultList->productStats
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'product', 'f' => 'all'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,products,productStats');
+        return $returnResult;
     }
 
     /**
@@ -286,31 +181,12 @@ class zentao
      */
     public function productCreateInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'product',
-            'f' => 'create'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'    => $resultList->title,
-                    'products' => $resultList->products,
-                    'lines'    => $resultList->lines,
-                    'poUsers'  => $resultList->poUsers,
-                    'qdUsers'  => $resultList->qdUsers,
-                    'rdUsers'  => $resultList->rdUsers,
-                    'groups'   => $resultList->groups
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'product', 'f' => 'create'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,products,lines,poUsers,qdUsers,rdUsers,groups');
+        return $returnResult;
     }
 
     /**
@@ -322,26 +198,14 @@ class zentao
      */
     public function productCreate($optionalParams = array())
     {
-        $returnResult = $this->returnResult;
-        $this->params = array();
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=product&f=create&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/product-create.json');
-        }
-        $resultData = json_decode($result);
-        if (strcmp($resultData->result, 'success') == 0) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => $resultData->message
-            );
-            return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
-        }
-        $returnResult['result'] = $resultData->message;
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $requestURL['get']       = self::ztURL . '?m=product&f=create&t=json';
+        $requestURL['path_info'] = self::ztURL . '/product-create.json';
+        $responseData            = $this->setParams(array(), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL, true);
+
+        $returnResult = $this->getOperationResult($responseData);
+        return $returnResult;
     }
 
     /**
@@ -353,33 +217,16 @@ class zentao
      */
     public function projectAll($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'project',
-            'f' => 'all'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'        => $resultList->title,
-                    'projects'     => $resultList->projects,
-                    'projectStats' => $resultList->projectStats,
-                    'teamMembers'  => $resultList->teamMembers,
-                    'users'        => $resultList->users
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'project', 'f' => 'all'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,projects,projectStats,teamMembers,users');
+        return $returnResult;
     }
 
     /**
-     * Gets optional information for adding items.
+     * Get optional information for adding items.
      *
      * @param array $optionalParams
      * @access public
@@ -387,28 +234,12 @@ class zentao
      */
     public function projectCreateInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'project',
-            'f' => 'create'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'       => $resultList->title,
-                    'projects'    => $resultList->projects,
-                    'groups'      => $resultList->groups,
-                    'allProducts' => $resultList->allProducts
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'project', 'f' => 'create'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,projects,groups,allProducts');
+        return $returnResult;
     }
 
     /**
@@ -420,25 +251,15 @@ class zentao
      */
     public function projectCreate($optionalParams = array())
     {
-        $this->params = array();
-        $returnResult = $this->returnResult;
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=project&f=create&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/project-create.json');
-        }
-        $resultData = json_decode($result);
-        if (strcmp($resultData->result, 'success') == 0) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => $resultData->message
-            );
-        }
-        $returnResult['result'] = $resultData->message;
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $requestURL['get']       = self::ztURL . '?m=project&f=create&t=json';
+        $requestURL['path_info'] = self::ztURL . '/project-create.json';
+
+        $responseData = $this->setParams(array(), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL, true);
+
+        $returnResult = $this->getOperationResult($responseData);
+        return $returnResult;
     }
 
     /**
@@ -450,29 +271,12 @@ class zentao
      */
     public function projectTask($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'project',
-            'f' => 'task'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'    => $resultList->title,
-                    'projects' => $resultList->projects,
-                    'project'  => $resultList->project,
-                    'products' => $resultList->products,
-                    'tasks'    => $resultList->tasks
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'project', 'f' => 'task'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,projects,project,products,tasks');
+        return $returnResult;
     }
 
     /**
@@ -484,30 +288,12 @@ class zentao
      */
     public function taskCreateInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'task',
-            'f' => 'create'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'            => $resultList->title,
-                    'projects'         => $resultList->projects,
-                    'users'            => $resultList->users,
-                    'stories'          => $resultList->stories,
-                    'moduleOptionMenu' => $resultList->moduleOptionMenu,
-                    'project'          => $resultList->project
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'task', 'f' => 'create'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,projects,users,stories,moduleOptionMenu,project');
+        return $returnResult;
     }
 
     /**
@@ -519,28 +305,15 @@ class zentao
      */
     public function taskCreate($optionalParams = array())
     {
-        $returnResult = $this->returnResult;
-        $this->params = array(
-            'status' => 'wait',
-            'after'  => 'toTaskList'
-        );
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=task&f=create&projectID=' . $optionalParams['project'] . '&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/task-create-' . $optionalParams['project'] . '.json');
-        }
-        $resultData = json_decode($result);
-        if (strcmp($resultData->result, 'success') == 0) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => $resultData->message
-            );
-        }
-        $returnResult['result'] = $resultData->message;
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $requestURL['get']       = self::ztURL . '?m=task&f=create&project=' . $optionalParams['project'] . '&t=json';
+        $requestURL['path_info'] = self::ztURL . '/task-create-' . $optionalParams['project'] . '.json';
+
+        $responseData = $this->setParams(array('status' => 'wait', 'after' => 'toTaskList'), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL, true);
+
+        $returnResult = $this->getOperationResult($responseData);
+        return $returnResult;
     }
 
     /**
@@ -552,29 +325,12 @@ class zentao
      */
     public function taskFinishInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'task',
-            'f' => 'finish'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'   => $resultList->title,
-                    'users'   => $resultList->users,
-                    'task'    => $resultList->task,
-                    'project' => $resultList->project,
-                    'actions' => $resultList->actions
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'task', 'f' => 'finish'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,users,task,project,actions');
+        return $returnResult;
     }
 
     /**
@@ -586,26 +342,18 @@ class zentao
      */
     public function taskFinish($optionalParams = array())
     {
-        $returnResult = $this->returnResult;
-        $this->params = array(
-            'status' => 'done'
-        );
-        $taskID       = $optionalParams['taskID'];
+        $taskID = $optionalParams['taskID'];
         unset($optionalParams['taskID']);
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=task&f=finish&taskID=' . $taskID . '&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/task-finish-' . $taskID . '.json');
-        }
-        if (strpos($result, 'task-view-' . $taskID . '.json') || strpos($result, 'taskID=' . $taskID)) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array()
-            );
-        }
+        $requestURL['get']       = self::ztURL . '?m=task&f=finish&taskID=' . $taskID . '&t=json';
+        $requestURL['path_info'] = self::ztURL . '/task-finish-' . $taskID . '.json';
+
+        $result = $this->setParams(array('status' => 'done'), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL, false);
+
+        $returnResult = $this->returnResult;
+        if (strpos($result, 'task-view-' . $taskID . '.json') || strpos($result, 'taskID=' . $taskID)) $returnResult = array('status' => 1, 'msg' => 'success', 'result' => array());
+
         return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
     }
 
@@ -618,33 +366,12 @@ class zentao
      */
     public function bugBrowse($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'bug',
-            'f' => 'browse'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'       => $resultList->title,
-                    'products'    => $resultList->products,
-                    'productID'   => $resultList->productID,
-                    'productName' => $resultList->productName,
-                    'product'     => $resultList->product,
-                    'moduleName'  => $resultList->moduleName,
-                    'modules'     => $resultList->modules,
-                    'browseType'  => $resultList->browseType,
-                    'bugs'        => $resultList->bugs
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'bug', 'f' => 'browse'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,products,productID,productName,product,moduleName,modules,browseType,bugs');
+        return $returnResult;
     }
 
     /**
@@ -656,32 +383,12 @@ class zentao
      */
     public function bugCreateInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'bug',
-            'f' => 'create'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'            => $resultList->title,
-                    'productID'        => $resultList->productID,
-                    'productName'      => $resultList->productName,
-                    'projects'         => $resultList->projects,
-                    'moduleOptionMenu' => $resultList->moduleOptionMenu,
-                    'users'            => $resultList->users,
-                    'stories'          => $resultList->stories,
-                    'builds'           => $resultList->builds
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'bug', 'f' => 'create'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,productID,productName,projects,moduleOptionMenu,users,stories,builds');
+        return $returnResult;
     }
 
     /**
@@ -693,27 +400,15 @@ class zentao
      */
     public function bugCreate($optionalParams = array())
     {
-        $returnResult = $this->returnResult;
-        $this->params = array(
-            'status' => 'active'
-        );
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=bug&f=create&productID=' . $optionalParams['product'] . '&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/bug-create-' . $optionalParams['product'] . '.json');
-        }
-        $resultData = json_decode($result);
-        if (strcmp($resultData->result, 'success') == 0) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => $resultData->message
-            );
-        }
-        $returnResult['result'] = $resultData->message;
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $requestURL['get']       = self::ztURL . '?m=bug&f=create&productID=' . $optionalParams['product'] . '&t=json';
+        $requestURL['path_info'] = self::ztURL . '/bug-create-' . $optionalParams['product'] . '.json';
+
+        $responseData = $this->setParams(array('status' => 'active'), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL, true);
+
+        $returnResult = $this->getOperationResult($responseData);
+        return $returnResult;
     }
 
     /**
@@ -725,30 +420,12 @@ class zentao
      */
     public function bugResolveInfo($optionalParams = array())
     {
-        $this->params = array(
-            'm' => 'bug',
-            'f' => 'resolve'
-        );
-        $this->params = array_merge($this->params, $optionalParams);
-        $result       = $this->getUrl(self::ztURL);
-        $resultData   = json_decode($result);
-        $returnResult = $this->returnResult;
-        if (strcmp($resultData->status, 'success') == 0) {
-            $resultList   = json_decode($resultData->data);
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array(
-                    'title'    => $resultList->title,
-                    'products' => $resultList->products,
-                    'bug'      => $resultList->bug,
-                    'users'    => $resultList->users,
-                    'builds'   => $resultList->builds,
-                    'actions'  => $resultList->actions
-                )
-            );
-        }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+        $result = $this->setParams(array('m' => 'bug', 'f' => 'resolve'), $optionalParams)
+            ->setRequestMethod('get')
+            ->sendRequest(array('get' => self::ztURL), true);
+
+        $returnResult = $this->getResultData($result, 'title,products,bug,users,builds,actions');
+        return $returnResult;
     }
 
     /**
@@ -760,26 +437,18 @@ class zentao
      */
     public function bugResolve($optionalParams = array())
     {
-        $returnResult = $this->returnResult;
-        $this->params = array(
-            'status' => 'resolved'
-        );
-        $bugID        = $optionalParams['bugID'];
+        $bugID                   = $optionalParams['bugID'];
+        $requestURL['get']       = self::ztURL . '?m=bug&f=resolve&bugID=' . $bugID . '&t=json';
+        $requestURL['path_info'] = self::ztURL . '/bug-resolve-' . $bugID . '.json';
         unset($optionalParams['bugID']);
-        if (self::requestType == 'GET') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '?m=bug&f=resolve&bugID=' . $bugID . '&t=json');
-        } elseif (self::requestType == 'PATH_INFO') {
-            $this->params = array_merge($this->params, $optionalParams);
-            $result       = $this->postUrl(self::ztURL . '/bug-resolve-' . $bugID . '.json');
-        }
-        if (strpos($result, 'bug-view-' . $bugID . '.json') || strpos($result, 'bugID=' . $bugID)) {
-            $returnResult = array(
-                'status' => 1,
-                'msg'    => 'success',
-                'result' => array()
-            );
-        }
+
+        $result = $this->setParams(array('status' => 'resolved'), $optionalParams)
+            ->setRequestMethod('post')
+            ->sendRequest($requestURL);
+
+        $returnResult = $this->returnResult;
+        if (strpos($result, 'bug-view-' . $bugID . '.json') || strpos($result, 'bugID=' . $bugID)) $returnResult = array('status' => 1, 'msg' => 'success', 'result' => array());
+
         return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
     }
 
@@ -793,20 +462,16 @@ class zentao
     public function getUrl($url)
     {
         $ch = curl_init();
-        if (self::requestType == 'GET') {
+        if (self::ztAccessMode == 'GET')
+        {
             $this->params = array_merge($this->params, array('t' => 'json'));
-            if (!empty($this->params) && count($this->params)) {
-                if (strpos($url, '?') !== false) {
-                    $url .= http_build_query($this->params);
-                } else {
-                    $url .= '?' . http_build_query($this->params);
-                }
-            }
-        } elseif (self::requestType == 'PATH_INFO') {
+            $url .= strpos($url, '?') ? http_build_query($this->params) : '?' . http_build_query($this->params);
+        } elseif (self::ztAccessMode == 'PATH_INFO')
+        {
             $params = implode('-', $this->params);
             $url    = $url . '/' . $params . '.json';
         }
-        curl_setopt($ch, CURLOPT_COOKIE, $this->sessionAuth);
+        curl_setopt($ch, CURLOPT_COOKIE, $this->tokenAuth);
         curl_setopt($ch, CURLOPT_REFERER, self::ztURL);
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -825,20 +490,97 @@ class zentao
     public function postUrl($url)
     {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_COOKIE, $this->sessionAuth);
+        curl_setopt($ch, CURLOPT_COOKIE, $this->tokenAuth);
         curl_setopt($ch, CURLOPT_REFERER, self::ztURL);
         curl_setopt($ch, CURLOPT_URL, $url);
-        if (!empty($this->params)) {
-            if (is_array($this->params)) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($this->params));
-            } else if (is_string($this->params)) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $this->params);
-            }
-        }
+        if (count($this->params)) curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($this->params));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, true);
         $result = curl_exec($ch);
         curl_close($ch);
         return $result;
+    }
+
+    /**
+     * Processing request parameters.
+     *
+     * @param array $requiredParams
+     * @param array $optionalParams
+     * @access public
+     * @return $this
+     */
+    public function setParams($requiredParams = array(), $optionalParams = array())
+    {
+        $this->params = array();
+        $this->params = array_merge($requiredParams, $optionalParams);
+        return $this;
+    }
+
+    /**
+     * Set request method.
+     *
+     * @param string $requestMethod
+     * @access public
+     * @return $this
+     */
+    public function setRequestMethod($requestMethod = 'get')
+    {
+        $this->requestMethod = strcmp($requestMethod, 'get') === 0 ? 'get' : 'post';
+        return $this;
+    }
+
+    /**
+     * Send a request for response results.
+     *
+     * @param array $requestURL
+     * @access public
+     * @return string $result
+     */
+    public function sendRequest($requestURL = array(), $isJson = false)
+    {
+        if ($this->requestMethod == 'get') $result = $this->getUrl($requestURL['get']);
+        if ($this->requestMethod == 'post') $result = self::ztAccessMode == 'GET' ? $this->postUrl($requestURL['get']) : $this->postUrl($requestURL['path_info']);
+        $result = $isJson ? json_decode($result) : $result;
+        return $result;
+    }
+
+    /**
+     * Get the specified result.
+     *
+     * @param string $responseData
+     * @param string $params
+     * @access public
+     * @return string $result
+     */
+    public function getResultData($responseData = '', $params = '')
+    {
+        $returnResult = $this->returnResult;
+        if (strcmp($responseData->status, 'success') === 0)
+        {
+            $responseData     = json_decode($responseData->data);
+            $paramsList       = explode(',', $params);
+            $returnResult['status'] = 1;
+            $returnResult['msg']    = 'success';
+            foreach ($paramsList as $k => $v)
+            {
+                $returnResult['result'][$v] = $responseData->$v;
+            }
+        }
+        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Get operation result.
+     *
+     * @param string $responseData
+     * @access public
+     * @return string $result
+     */
+    public function getOperationResult($responseData = ''){
+        $returnResult = $this->returnResult;
+        if (strcmp($responseData->result, 'success') === 0) $returnResult = array('status' => 1, 'msg' => 'success');
+        $returnResult['result'] = $responseData->message;
+
+        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
     }
 }

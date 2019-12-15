@@ -1,7 +1,5 @@
 <?php
 
-namespace zentao\zentao;
-
 /**
  * This is the PHP-SDK class of ZenTaoPMS.
  *
@@ -23,7 +21,7 @@ class zentao
     public $tokenAuth     = '';         // Session authentication.
     public $requestMethod = '';         // Set request method.
     public $params        = array();    // Interface request parameter.
-    public $returnResult  = array('status' => 0, 'msg' => 'error', 'result' => array());            // Return result.
+    public $returnResult  = array('status' => 0, 'msg' => 'error', 'result' => array());         // Return result.
 
     /**
      * Get the session ID required for the session.
@@ -61,16 +59,18 @@ class zentao
      * Get a list of departments.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function deptBrowse($optionalParams = array())
+    public function deptBrowse($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'dept', 'f' => 'browse'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,deptID,parentDepts,sons,tree');
+        $extraFields  = empty($extraFields) ? array('title', 'deptID', 'parentDepts', 'sons', 'tree') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -97,16 +97,18 @@ class zentao
      * Get user list.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function companyBrowse($optionalParams = array())
+    public function companyBrowse($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'company', 'f' => 'browse'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,users');
+        $extraFields  = empty($extraFields) ? array('title', 'users') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -114,16 +116,18 @@ class zentao
      * Add user optional information.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function userCreateInfo($optionalParams = array())
+    public function getUserCreateParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'user', 'f' => 'create'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult      = $this->getResultData($result, 'title,depts,groupList,roleGroup');
+        $extraFields       = empty($extraFields) ? array('title', 'depts', 'groupList', 'roleGroup') : $extraFields;
+        $returnResult      = $this->getResultData($result, $extraFields);
         $result            = json_decode($result->data);
         $this->sessionRand = $result->rand;
         return $returnResult;
@@ -139,7 +143,7 @@ class zentao
     public function userCreate($optionalParams = array())
     {
         //Get the random number required for encryption.
-        $this->userCreateInfo();
+        $this->getUserCreateParams();
 
         $optionalParams['password1']      = md5($optionalParams['password1'] . $this->sessionRand);
         $optionalParams['password2']      = md5($optionalParams['password2'] . $this->sessionRand);
@@ -151,7 +155,7 @@ class zentao
             ->setRequestMethod('post')
             ->sendRequest($requestURL, true);
 
-        $returnResult = $this->getOperationResult($responseData);
+        $returnResult = $this->getResultData($responseData);
         return $returnResult;
     }
 
@@ -159,16 +163,18 @@ class zentao
      * Get product list.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function productAll($optionalParams = array())
+    public function productAll($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'product', 'f' => 'all'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,products,productStats');
+        $extraFields  = empty($extraFields) ? array('title', 'products', 'productStats') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -176,16 +182,18 @@ class zentao
      * Get added product optional information.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function productCreateInfo($optionalParams = array())
+    public function getProductCreateParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'product', 'f' => 'create'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,products,lines,poUsers,qdUsers,rdUsers,groups');
+        $extraFields  = empty($extraFields) ? array('title', 'products', 'lines', 'poUsers', 'qdUsers', 'rdUsers', 'groups') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -200,11 +208,12 @@ class zentao
     {
         $requestURL['get']       = self::ztURL . '?m=product&f=create&t=json';
         $requestURL['path_info'] = self::ztURL . '/product-create.json';
-        $responseData            = $this->setParams(array(), $optionalParams)
+
+        $responseData = $this->setParams(array(), $optionalParams)
             ->setRequestMethod('post')
             ->sendRequest($requestURL, true);
 
-        $returnResult = $this->getOperationResult($responseData);
+        $returnResult = $this->getResultData($responseData);
         return $returnResult;
     }
 
@@ -212,16 +221,18 @@ class zentao
      * Get item list.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function projectAll($optionalParams = array())
+    public function projectAll($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'project', 'f' => 'all'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,projects,projectStats,teamMembers,users');
+        $extraFields  = empty($extraFields) ? array('title', 'projects', 'projectStats', 'teamMembers', 'users') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -229,16 +240,18 @@ class zentao
      * Get optional information for adding items.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function projectCreateInfo($optionalParams = array())
+    public function getProjectCreateParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'project', 'f' => 'create'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,projects,groups,allProducts');
+        $extraFields  = empty($extraFields) ? array('title', 'projects', 'groups', 'allProducts') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -258,7 +271,7 @@ class zentao
             ->setRequestMethod('post')
             ->sendRequest($requestURL, true);
 
-        $returnResult = $this->getOperationResult($responseData);
+        $returnResult = $this->getResultData($responseData);
         return $returnResult;
     }
 
@@ -266,16 +279,18 @@ class zentao
      * Get task list.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function projectTask($optionalParams = array())
+    public function projectTask($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'project', 'f' => 'task'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,projects,project,products,tasks');
+        $extraFields  = empty($extraFields) ? array('title', 'projects', 'project', 'products', 'tasks') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -283,16 +298,18 @@ class zentao
      * Add task optional information.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function taskCreateInfo($optionalParams = array())
+    public function getTaskCreateParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'task', 'f' => 'create'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,projects,users,stories,moduleOptionMenu,project');
+        $extraFields  = empty($extraFields) ? array('title', 'projects', 'users', 'stories', 'moduleOptionMenu', 'project') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -312,7 +329,7 @@ class zentao
             ->setRequestMethod('post')
             ->sendRequest($requestURL, true);
 
-        $returnResult = $this->getOperationResult($responseData);
+        $returnResult = $this->getResultData($responseData);
         return $returnResult;
     }
 
@@ -320,16 +337,18 @@ class zentao
      * Optional information for completing a single task.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function taskFinishInfo($optionalParams = array())
+    public function getTaskFinishParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'task', 'f' => 'finish'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,users,task,project,actions');
+        $extraFields  = empty($extraFields) ? array('title', 'users', 'task', 'project', 'actions') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -361,16 +380,18 @@ class zentao
      * Get BUG List.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function bugBrowse($optionalParams = array())
+    public function bugBrowse($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'bug', 'f' => 'browse'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,products,productID,productName,product,moduleName,modules,browseType,bugs');
+        $extraFields  = empty($extraFields) ? array('title', 'products', 'productID', 'productName', 'product', 'moduleName', 'modules', 'browseType', 'bugs') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -378,16 +399,18 @@ class zentao
      * Add single BUG optional information.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function bugCreateInfo($optionalParams = array())
+    public function getBugCreateParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'bug', 'f' => 'create'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,productID,productName,projects,moduleOptionMenu,users,stories,builds');
+        $extraFields  = empty($extraFields) ? array('title', 'productID', 'productName', 'projects', 'moduleOptionMenu', 'users', 'stories', 'builds') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -407,7 +430,7 @@ class zentao
             ->setRequestMethod('post')
             ->sendRequest($requestURL, true);
 
-        $returnResult = $this->getOperationResult($responseData);
+        $returnResult = $this->getResultData($responseData);
         return $returnResult;
     }
 
@@ -415,16 +438,18 @@ class zentao
      * Optional information for solving a single bug.
      *
      * @param array $optionalParams
+     * @param array $extraFields
      * @access public
      * @return string
      */
-    public function bugResolveInfo($optionalParams = array())
+    public function getBugResolveParams($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'bug', 'f' => 'resolve'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $returnResult = $this->getResultData($result, 'title,products,bug,users,builds,actions');
+        $extraFields  = empty($extraFields) ? array('title', 'products', 'bug', 'users', 'builds', 'actions') : $extraFields;
+        $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
 
@@ -465,7 +490,7 @@ class zentao
         if (self::ztAccessMode == 'GET')
         {
             $this->params = array_merge($this->params, array('t' => 'json'));
-            $url .= strpos($url, '?') ? http_build_query($this->params) : '?' . http_build_query($this->params);
+            $url          .= strpos($url, '?') ? http_build_query($this->params) : '?' . http_build_query($this->params);
         } elseif (self::ztAccessMode == 'PATH_INFO')
         {
             $params = implode('-', $this->params);
@@ -533,14 +558,15 @@ class zentao
      * Send a request for response results.
      *
      * @param array $requestURL
+     * @param bool $isDecode
      * @access public
      * @return string $result
      */
-    public function sendRequest($requestURL = array(), $isJson = false)
+    public function sendRequest($requestURL = array(), $isDecode = false)
     {
         if ($this->requestMethod == 'get') $result = $this->getUrl($requestURL['get']);
         if ($this->requestMethod == 'post') $result = self::ztAccessMode == 'GET' ? $this->postUrl($requestURL['get']) : $this->postUrl($requestURL['path_info']);
-        $result = $isJson ? json_decode($result) : $result;
+        $result = $isDecode ? json_decode($result) : $result;
         return $result;
     }
 
@@ -548,39 +574,27 @@ class zentao
      * Get the specified result.
      *
      * @param string $responseData
-     * @param string $params
+     * @param array $extraFields
      * @access public
      * @return string $result
      */
-    public function getResultData($responseData = '', $params = '')
+    public function getResultData($responseData = '', $extraFields = array())
     {
         $returnResult = $this->returnResult;
-        if (strcmp($responseData->status, 'success') === 0)
+        if (!empty($responseData->status) && strcmp($responseData->status, 'success') === 0)
         {
-            $responseData     = json_decode($responseData->data);
-            $paramsList       = explode(',', $params);
-            $returnResult['status'] = 1;
-            $returnResult['msg']    = 'success';
-            foreach ($paramsList as $k => $v)
+            $returnResult = array('status' => 1, 'msg' => 'success');
+            $responseData = json_decode($responseData->data);
+            foreach ($extraFields as $k => $v)
             {
                 $returnResult['result'][$v] = $responseData->$v;
             }
+            if (count($extraFields) == 0) $returnResult['result'] = $responseData;
+        } elseif (!empty($responseData->result))
+        {
+            if (strcmp($responseData->result, 'success') === 0) $returnResult = array('status' => 1, 'msg' => 'success');
+            $returnResult['result'] = $responseData->message;
         }
-        return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
-    }
-
-    /**
-     * Get operation result.
-     *
-     * @param string $responseData
-     * @access public
-     * @return string $result
-     */
-    public function getOperationResult($responseData = ''){
-        $returnResult = $this->returnResult;
-        if (strcmp($responseData->result, 'success') === 0) $returnResult = array('status' => 1, 'msg' => 'success');
-        $returnResult['result'] = $responseData->message;
-
         return json_encode($returnResult, JSON_UNESCAPED_UNICODE);
     }
 }

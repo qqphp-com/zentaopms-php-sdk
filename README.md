@@ -2,17 +2,17 @@
 > 本篇介绍如何在 PHP 项目中调用禅道 SDK ,以下以 zentaoPHP、Tinkphp5、Laravel6 框架作为演示示例。
 
 #### 简介
- - **禅道SDK-文档地址：** `https://www.kancloud.cn/ly978317/zentao`
+ - **禅道SDK-文档地址：** `https://www.zentao.net/book/api/setting-369.html`
  - 使用 SDK 之前，需要在引用的禅道 SDK 文件中填写一些必要配置信息。以下有三个使用参考示例，实际使用需根据实际项目情况进行调用。
 
 #### 配置禅道SDK信息
 ```
 //禅道部署域名
-const ztUrl = 'http://zentao.*****.com';
+const ztUrl       = 'http://www.zentao.com';
 //禅道登录账户
-const ztAccount = 'admin';
+const ztAccount   = 'admin';
 //禅道登录密码
-const ztPassword = '123456';
+const ztPassword  = '123456';
 //禅道参数请求方式[ GET | PATH_INFO ]
 const requestType = 'PATH_INFO';
 ```
@@ -24,7 +24,7 @@ const requestType = 'PATH_INFO';
 public function deptBrowse()
 {
     include_once('../../tools/zentao/zentao.php');
-    $zentao = new \zentao\zentao\zentao();
+    $zentao = new zentao();
     $params = array(
         'deptID' => 1
     );
@@ -40,7 +40,7 @@ public function deptBrowse()
 public function deptBrowse()
 {
     include_once('../vendor/zentao/zentao.php');
-    $zentao = new \zentao\zentao\zentao();
+    $zentao = new \zentao();
     $params = array(
         'deptID' => 1
     );

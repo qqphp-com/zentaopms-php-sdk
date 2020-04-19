@@ -43,9 +43,10 @@ class zentao
     public function login()
     {
         /* Get token. */
-        $result          = $this->setParams(array('m' => 'api', 'f' => 'getSessionID'))
+        $result = $this->setParams(array('m' => 'api', 'f' => 'getSessionID'))
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
+
         $result          = json_decode($result->data);
         $this->tokenAuth = $result->sessionName . '=' . $result->sessionID;
 
@@ -63,13 +64,13 @@ class zentao
      * @access public
      * @return string
      */
-    public function deptBrowse($optionalParams = array(), $extraFields = array())
+    public function getDeptList($optionalParams = array(), $extraFields = array())
     {
         $result = $this->setParams(array('m' => 'dept', 'f' => 'browse'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'deptID', 'parentDepts', 'sons', 'tree') : $extraFields;
+        $extraFields  = array_merge(array('title', 'deptID', 'parentDepts', 'sons', 'tree'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -81,7 +82,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function deptManageChild($optionalParams = array())
+    public function addDept($optionalParams = array())
     {
         $result = $this->setParams(array(), $optionalParams)
             ->setRequestMethod('post')
@@ -101,13 +102,14 @@ class zentao
      * @access public
      * @return string
      */
-    public function companyBrowse($optionalParams = array(), $extraFields = array())
+    public function getUserList($optionalParams = array(), $extraFields = array())
     {
+        $optionalParams = array_merge(array('param'=> 0, 'type'=> 'bydept', 'orderBy'=> 'id', 'recTotal'=> 999999, 'recPerPage' => 999999), $optionalParams);
         $result = $this->setParams(array('m' => 'company', 'f' => 'browse'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'users') : $extraFields;
+        $extraFields  = array_merge(array('title', 'users'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -126,7 +128,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields       = empty($extraFields) ? array('title', 'depts', 'groupList', 'roleGroup') : $extraFields;
+        $extraFields       = array_merge(array('title', 'depts', 'groupList', 'roleGroup'), $extraFields);
         $returnResult      = $this->getResultData($result, $extraFields);
         $result            = json_decode($result->data);
         $this->sessionRand = $result->rand;
@@ -140,9 +142,9 @@ class zentao
      * @access public
      * @return string
      */
-    public function userCreate($optionalParams = array())
+    public function addUser($optionalParams = array())
     {
-        //Get the random number required for encryption.
+        // Get the random number required for encryption.
         $this->getUserCreateParams();
 
         $optionalParams['password1']      = md5($optionalParams['password1'] . $this->sessionRand);
@@ -167,13 +169,14 @@ class zentao
      * @access public
      * @return string
      */
-    public function productAll($optionalParams = array(), $extraFields = array())
+    public function getProductList($optionalParams = array(), $extraFields = array())
     {
+        $optionalParams = array_merge(array('productID ' => 0, 'line' => 0, 'status' => 'all', 'orderBy' => 'order_desc', 'recTotal' => 999999, 'recPerPage' => 999999), $optionalParams);
         $result = $this->setParams(array('m' => 'product', 'f' => 'all'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'products', 'productStats') : $extraFields;
+        $extraFields  = array_merge(array('title', 'products', 'productStats'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -192,7 +195,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'products', 'lines', 'poUsers', 'qdUsers', 'rdUsers', 'groups') : $extraFields;
+        $extraFields  = array_merge(array('title', 'products', 'lines', 'poUsers', 'qdUsers', 'rdUsers', 'groups'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -204,7 +207,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function productCreate($optionalParams = array())
+    public function addProduct($optionalParams = array())
     {
         $requestURL['get']       = self::ztURL . '?m=product&f=create&t=json';
         $requestURL['path_info'] = self::ztURL . '/product-create.json';
@@ -218,20 +221,21 @@ class zentao
     }
 
     /**
-     * Get item list.
+     * Get project list.
      *
      * @param array $optionalParams
      * @param array $extraFields
      * @access public
      * @return string
      */
-    public function projectAll($optionalParams = array(), $extraFields = array())
+    public function getProjectList($optionalParams = array(), $extraFields = array())
     {
+        $optionalParams = array_merge(array('status' => 'all', 'projectID' => 0, 'orderBy' => 'order_desc', 'productID' => 0, 'recTotal' => 999999, 'recPerPage' => 999999), $optionalParams);
         $result = $this->setParams(array('m' => 'project', 'f' => 'all'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'projects', 'projectStats', 'teamMembers', 'users') : $extraFields;
+        $extraFields  = array_merge(array('title', 'projects', 'projectStats', 'teamMembers', 'users'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -250,7 +254,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'projects', 'groups', 'allProducts') : $extraFields;
+        $extraFields  = array_merge(array('title', 'projects', 'groups', 'allProducts'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -262,7 +266,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function projectCreate($optionalParams = array())
+    public function addProject($optionalParams = array())
     {
         $requestURL['get']       = self::ztURL . '?m=project&f=create&t=json';
         $requestURL['path_info'] = self::ztURL . '/project-create.json';
@@ -283,13 +287,14 @@ class zentao
      * @access public
      * @return string
      */
-    public function projectTask($optionalParams = array(), $extraFields = array())
+    public function getTaskList($optionalParams = array(), $extraFields = array())
     {
+        $optionalParams = array_merge(array('projectID' => 0, 'status' => 'all', 'param' => 0, 'orderBy' => '', 'recTotal' => 999999, 'recPerPage' => 999999), $optionalParams);
         $result = $this->setParams(array('m' => 'project', 'f' => 'task'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'projects', 'project', 'products', 'tasks') : $extraFields;
+        $extraFields  = array_merge(array('title', 'projects', 'project', 'products', 'tasks'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -308,7 +313,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'projects', 'users', 'stories', 'moduleOptionMenu', 'project') : $extraFields;
+        $extraFields  = array_merge(array('title', 'projects', 'users', 'stories', 'moduleOptionMenu', 'project'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -320,7 +325,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function taskCreate($optionalParams = array())
+    public function addTask($optionalParams = array())
     {
         $requestURL['get']       = self::ztURL . '?m=task&f=create&project=' . $optionalParams['project'] . '&t=json';
         $requestURL['path_info'] = self::ztURL . '/task-create-' . $optionalParams['project'] . '.json';
@@ -347,7 +352,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'users', 'task', 'project', 'actions') : $extraFields;
+        $extraFields  = array_merge(array('title', 'users', 'task', 'project', 'actions'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -359,7 +364,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function taskFinish($optionalParams = array())
+    public function addTaskFinish($optionalParams = array())
     {
         $taskID = $optionalParams['taskID'];
         unset($optionalParams['taskID']);
@@ -384,13 +389,14 @@ class zentao
      * @access public
      * @return string
      */
-    public function bugBrowse($optionalParams = array(), $extraFields = array())
+    public function getBugList($optionalParams = array(), $extraFields = array())
     {
+        $optionalParams = array_merge(array('productID' => 0, 'branch' => 0, 'browseType' => 'all', 'param' => 0, 'orderBy' => '', 'recTotal' => 999999, 'recPerPage' => 999999), $optionalParams);
         $result = $this->setParams(array('m' => 'bug', 'f' => 'browse'), $optionalParams)
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'products', 'productID', 'productName', 'product', 'moduleName', 'modules', 'browseType', 'bugs') : $extraFields;
+        $extraFields  = array_merge(array('title', 'products', 'productID', 'productName', 'product', 'moduleName', 'modules', 'browseType', 'bugs'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -409,7 +415,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'productID', 'productName', 'projects', 'moduleOptionMenu', 'users', 'stories', 'builds') : $extraFields;
+        $extraFields  = array_merge(array('title', 'productID', 'productName', 'projects', 'moduleOptionMenu', 'users', 'stories', 'builds'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -421,7 +427,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function bugCreate($optionalParams = array())
+    public function addBug($optionalParams = array())
     {
         $requestURL['get']       = self::ztURL . '?m=bug&f=create&productID=' . $optionalParams['product'] . '&t=json';
         $requestURL['path_info'] = self::ztURL . '/bug-create-' . $optionalParams['product'] . '.json';
@@ -448,7 +454,7 @@ class zentao
             ->setRequestMethod('get')
             ->sendRequest(array('get' => self::ztURL), true);
 
-        $extraFields  = empty($extraFields) ? array('title', 'products', 'bug', 'users', 'builds', 'actions') : $extraFields;
+        $extraFields  = array_merge(array('title', 'products', 'bug', 'users', 'builds', 'actions'), $extraFields);
         $returnResult = $this->getResultData($result, $extraFields);
         return $returnResult;
     }
@@ -460,7 +466,7 @@ class zentao
      * @access public
      * @return string
      */
-    public function bugResolve($optionalParams = array())
+    public function addBugResolve($optionalParams = array())
     {
         $bugID                   = $optionalParams['bugID'];
         $requestURL['get']       = self::ztURL . '?m=bug&f=resolve&bugID=' . $bugID . '&t=json';
@@ -490,12 +496,16 @@ class zentao
         if (self::ztAccessMode == 'GET')
         {
             $this->params = array_merge($this->params, array('t' => 'json'));
-            $url          .= strpos($url, '?') ? http_build_query($this->params) : '?' . http_build_query($this->params);
-        } elseif (self::ztAccessMode == 'PATH_INFO')
+            $url         .= strpos($url, '?') ? http_build_query($this->params) : '?' . http_build_query($this->params);
+        }
+        elseif (self::ztAccessMode == 'PATH_INFO')
         {
             $params = implode('-', $this->params);
             $url    = $url . '/' . $params . '.json';
         }
+
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($ch, CURLOPT_COOKIE, $this->tokenAuth);
         curl_setopt($ch, CURLOPT_REFERER, self::ztURL);
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -515,6 +525,8 @@ class zentao
     public function postUrl($url)
     {
         $ch = curl_init();
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($ch, CURLOPT_COOKIE, $this->tokenAuth);
         curl_setopt($ch, CURLOPT_REFERER, self::ztURL);
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -564,7 +576,7 @@ class zentao
      */
     public function sendRequest($requestURL = array(), $isDecode = false)
     {
-        if ($this->requestMethod == 'get') $result = $this->getUrl($requestURL['get']);
+        if ($this->requestMethod == 'get')  $result = $this->getUrl($requestURL['get']);
         if ($this->requestMethod == 'post') $result = self::ztAccessMode == 'GET' ? $this->postUrl($requestURL['get']) : $this->postUrl($requestURL['path_info']);
         $result = $isDecode ? json_decode($result) : $result;
         return $result;
@@ -587,10 +599,11 @@ class zentao
             $responseData = json_decode($responseData->data);
             foreach ($extraFields as $k => $v)
             {
-                $returnResult['result'][$v] = $responseData->$v;
+                isset($responseData->$v) ? $returnResult['result'][$v] = $responseData->$v : $returnResult['result'][$v] = array();
             }
             if (count($extraFields) == 0) $returnResult['result'] = $responseData;
-        } elseif (!empty($responseData->result))
+        }
+        elseif (!empty($responseData->result))
         {
             if (strcmp($responseData->result, 'success') === 0) $returnResult = array('status' => 1, 'msg' => 'success');
             $returnResult['result'] = $responseData->message;
